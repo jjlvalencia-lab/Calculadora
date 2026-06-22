@@ -35,7 +35,8 @@ jobs:
             autoconf automake libtool libtool-bin m4 \
             build-essential pkg-config zlib1g-dev libncurses5-dev libgdbm-dev \
             libssl-dev libffi-dev libsqlite3-dev tk-dev libgdbm-compat-dev \
-            libsdl2-dev libc6-dev python3-venv
+            libsdl2-dev libc6-dev python3-venv \
+            liblzma-dev libreadline-dev xz-utils
 
       - name: Verify autotools
         run: |
@@ -73,27 +74,29 @@ jobs:
           python -m pip show python-for-android || true
           pip list | grep -E "buildozer|python-for-android|cython" || true
 
-      - name: Build APK (preparar autotools + reintentos)
+      - name: Prepare autotools in all unpacked recipes (attempt)
+        run: |
+          # Busca cualquier configure.ac bajo .buildozer/android/platform y ejecuta libtoolize/aclocal/autoreconf allí.
+          BASE=".buildozer/android/platform"
+          if [ -d "$BASE" ]; then
+            echo "Buscando configure.ac en $BASE..."
+            find "$BASE" -type f -name configure.ac -print0 | while IFS= read -r -d '' f; do
+              d="$(dirname "$f")"
+              echo "Preparando autotools en: $d"
+              (cd "$d" && libtoolize --force --copy 2>/dev/null || true)
+              (cd "$d" && aclocal 2>/dev/null || true)
+              (cd "$d" && autoupdate 2>/dev/null || true)
+              (cd "$d" && autoreconf -fi 2>/dev/null || true)
+            done
+          else
+            echo "$BASE no encontrado, se omitirá paso de preparación."
+          fi
+
+      - name: Build APK (reintentos + verbose)
         env:
           P4A_LOG_LEVEL: "2"
         run: |
           set -euo pipefail
-
-          # Intentar preparar autotools en el árbol de python-for-android si existe
-          P4A_DIR=".buildozer/android/platform/python-for-android"
-          if [ -d "$P4A_DIR" ]; then
-            echo "Preparando autotools en $P4A_DIR (libtoolize, aclocal, autoupdate, autoreconf)..."
-            cd "$P4A_DIR" || true
-            libtoolize --force --copy || true
-            aclocal || true
-            autoupdate || true
-            autoreconf -fi || true
-            cd - >/dev/null || true
-          else
-            echo "$P4A_DIR no existe todavía; se omitirá preparación de autotools."
-          fi
-
-          # Reintentos para mitigar errores 502 transitorios durante descargas
           attempts=0
           max_attempts=3
           while [ $attempts -lt $max_attempts ]; do
@@ -111,10 +114,9 @@ jobs:
               fi
             fi
           done
-
           if [ $attempts -ge $max_attempts ] && ! grep -q "Buildozer finalizó correctamente" buildozer.log 2>/dev/null; then
             echo "ERROR: buildozer falló después de $max_attempts intentos"
-            tail -n 200 buildozer.log || true
+            tail -n 300 buildozer.log || true
             exit 1
           fi
 
