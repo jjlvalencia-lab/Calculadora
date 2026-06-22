@@ -73,12 +73,50 @@ jobs:
           python -m pip show python-for-android || true
           pip list | grep -E "buildozer|python-for-android|cython" || true
 
-      - name: Build APK (verbose)
+      - name: Build APK (preparar autotools + reintentos)
         env:
           P4A_LOG_LEVEL: "2"
         run: |
-          set -o pipefail
-          yes | buildozer -v android debug 2>&1 | tee buildozer.log
+          set -euo pipefail
+
+          # Intentar preparar autotools en el árbol de python-for-android si existe
+          P4A_DIR=".buildozer/android/platform/python-for-android"
+          if [ -d "$P4A_DIR" ]; then
+            echo "Preparando autotools en $P4A_DIR (libtoolize, aclocal, autoupdate, autoreconf)..."
+            cd "$P4A_DIR" || true
+            libtoolize --force --copy || true
+            aclocal || true
+            autoupdate || true
+            autoreconf -fi || true
+            cd - >/dev/null || true
+          else
+            echo "$P4A_DIR no existe todavía; se omitirá preparación de autotools."
+          fi
+
+          # Reintentos para mitigar errores 502 transitorios durante descargas
+          attempts=0
+          max_attempts=3
+          while [ $attempts -lt $max_attempts ]; do
+            attempts=$((attempts+1))
+            echo "Intento $attempts/$max_attempts: ejecutando buildozer..."
+            if yes | buildozer -v android debug 2>&1 | tee buildozer.log; then
+              echo "Buildozer finalizó correctamente en el intento $attempts"
+              break
+            else
+              echo "Buildozer falló en el intento $attempts"
+              if [ $attempts -lt $max_attempts ]; then
+                backoff=$((attempts * 20))
+                echo "Esperando $backoff segundos antes del reintento..."
+                sleep $backoff
+              fi
+            fi
+          done
+
+          if [ $attempts -ge $max_attempts ] && ! grep -q "Buildozer finalizó correctamente" buildozer.log 2>/dev/null; then
+            echo "ERROR: buildozer falló después de $max_attempts intentos"
+            tail -n 200 buildozer.log || true
+            exit 1
+          fi
 
       - name: Upload build logs
         uses: actions/upload-artifact@v4
