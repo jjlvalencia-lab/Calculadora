@@ -36,7 +36,16 @@ jobs:
             build-essential pkg-config zlib1g-dev libncurses5-dev libgdbm-dev \
             libssl-dev libffi-dev libsqlite3-dev tk-dev libgdbm-compat-dev \
             libsdl2-dev libc6-dev python3-venv \
-            liblzma-dev libreadline-dev xz-utils
+            liblzma-dev libreadline-dev xz-utils \
+            libltdl-dev
+
+      - name: Fix libtool macros
+        run: |
+          sudo apt install -y libtool libtool-bin libltdl-dev
+          sudo mkdir -p /usr/local/share/aclocal
+          sudo libtoolize --force --copy
+          sudo aclocal --system-acdir=/usr/share/aclocal || true
+          ls /usr/share/aclocal/ | grep -i libtool || true
 
       - name: Verify autotools
         run: |
@@ -76,7 +85,6 @@ jobs:
 
       - name: Prepare autotools in all unpacked recipes (attempt)
         run: |
-          # Busca cualquier configure.ac bajo .buildozer/android/platform y ejecuta libtoolize/aclocal/autoreconf allí.
           BASE=".buildozer/android/platform"
           if [ -d "$BASE" ]; then
             echo "Buscando configure.ac en $BASE..."
