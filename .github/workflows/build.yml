@@ -121,6 +121,7 @@ jobs:
           fi
 
       - name: Upload build logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: buildozer-log
