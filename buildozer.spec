@@ -43,10 +43,10 @@ requirements = python3,kivy
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/calcu.png
+# presplash.filename = %(source.dir)s/calcu.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/calcu.png
+# icon.filename = %(source.dir)s/calcu.png
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
