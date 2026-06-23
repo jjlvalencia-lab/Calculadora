@@ -122,7 +122,7 @@ jobs:
               fi
             fi
           done
-          if [ $attempts -ge $max_attempts ] && ! grep -q "Buildozer finalizó correctamente" buildozer.log 2>/dev/null; then
+          if [ $attempts -ge $max_attempts ] && ! grep -q "Android packaging done" buildozer.log 2>/dev/null; then
             echo "ERROR: buildozer falló después de $max_attempts intentos"
             tail -n 300 buildozer.log || true
             exit 1
