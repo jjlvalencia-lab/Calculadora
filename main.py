@@ -1,178 +1,78 @@
+
 import math
 from datetime import datetime
 from kivy.app import App
+from kivy.core.window import Window
+from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
-from kivy.core.window import Window
+from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex
 
-HISTORIAL_FILE = "historial.txt"
+HISTORIAL_FILE="historial.txt"
 
 class CalculadoraApp(App):
     def build(self):
-        Window.clearcolor = get_color_from_hex("#0F172A")
-        self.historial_texto = ""
-
-        root = BoxLayout(orientation='horizontal', padding=10, spacing=10)
-
-        # Panel izquierdo — calculadora
-        panel_calc = BoxLayout(orientation='vertical', spacing=8, size_hint=(0.65, 1))
-
-        titulo = Label(
-            text="CALCULADORA PROFESIONAL",
-            font_size='18sp',
-            bold=True,
-            color=get_color_from_hex("#38BDF8"),
-            size_hint_y=None,
-            height=50
-        )
-        panel_calc.add_widget(titulo)
-
-        self.entrada = TextInput(
-            font_size='28sp',
-            multiline=False,
-            halign='right',
-            background_color=get_color_from_hex("#020617"),
-            foreground_color=(1, 1, 1, 1),
-            cursor_color=(1, 1, 1, 1),
-            size_hint_y=None,
-            height=70
-        )
-        panel_calc.add_widget(self.entrada)
-
-        # Botones C y borrar
-        fila_ctrl = BoxLayout(size_hint_y=None, height=55, spacing=6)
-        fila_ctrl.add_widget(self._btn("C", "#DC2626", self.limpiar))
-        fila_ctrl.add_widget(self._btn("⌫", "#F59E0B", self.borrar))
-        panel_calc.add_widget(fila_ctrl)
-
-        # Botones científicos
-        fila_cien = GridLayout(cols=6, size_hint_y=None, height=55, spacing=4)
-        cientificos = [("√", "sqrt("), ("sin", "sin("), ("cos", "cos("),
-                       ("tan", "tan("), ("log", "log("), ("π", "pi")]
-        for texto, val in cientificos:
-            fila_cien.add_widget(self._btn(texto, "#4F46E5", lambda v=val: self.escribir(v)))
-        panel_calc.add_widget(fila_cien)
-
-        # Teclado numérico
-        teclas = [
-            ["(", ")", "%", "/"],
-            ["7", "8", "9", "*"],
-            ["4", "5", "6", "-"],
-            ["1", "2", "3", "+"],
-            ["0", ".", "^", "="],
-        ]
-        grid = GridLayout(cols=4, spacing=5)
-        for fila in teclas:
-            for t in fila:
-                if t == "=":
-                    grid.add_widget(self._btn(t, "#22C55E", self.calcular))
-                else:
-                    grid.add_widget(self._btn(t, "#334155", lambda v=t: self.escribir(v)))
-        panel_calc.add_widget(grid)
-
-        root.add_widget(panel_calc)
-
-        # Panel derecho — historial
-        panel_hist = BoxLayout(orientation='vertical', spacing=6, size_hint=(0.35, 1))
-
-        panel_hist.add_widget(Label(
-            text="HISTORIAL",
-            font_size='16sp',
-            bold=True,
-            color=get_color_from_hex("#22C55E"),
-            size_hint_y=None,
-            height=40
-        ))
-
-        scroll = ScrollView()
-        self.lbl_historial = Label(
-            text="",
-            font_size='11sp',
-            color=(1, 1, 1, 1),
-            halign='left',
-            valign='top',
-            text_size=(None, None),
-            size_hint_y=None
-        )
-        self.lbl_historial.bind(texture_size=lambda inst, val: setattr(inst, 'height', val[1]))
-        self.lbl_historial.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
-        scroll.add_widget(self.lbl_historial)
-        panel_hist.add_widget(scroll)
-
-        panel_hist.add_widget(self._btn("Limpiar", "#B91C1C", self.limpiar_historial,
-                                        size_hint_y=None, height=45))
-
-        root.add_widget(panel_hist)
-
-        self._cargar_historial()
+        Window.clearcolor=get_color_from_hex("#111827")
+        self.hist=""
+        root=BoxLayout(orientation="vertical",padding=dp(10),spacing=dp(8))
+        root.add_widget(Label(text="CALCULADORA",bold=True,font_size="26sp",
+                              color=get_color_from_hex("#60A5FA"),size_hint_y=None,height=dp(40)))
+        self.txt=TextInput(multiline=False,readonly=False,font_size="36sp",
+                           halign="right",size_hint_y=None,height=dp(90),
+                           background_color=get_color_from_hex("#030712"),
+                           foreground_color=(1,1,1,1))
+        root.add_widget(self.txt)
+        top=GridLayout(cols=2,size_hint_y=None,height=dp(65),spacing=dp(8))
+        top.add_widget(self.btn("C","#DC2626",self.clear))
+        top.add_widget(self.btn("⌫","#F59E0B",self.back))
+        root.add_widget(top)
+        sci=GridLayout(cols=6,size_hint_y=None,height=dp(65),spacing=dp(5))
+        for t,v in [("√","sqrt("),("sin","sin("),("cos","cos("),("tan","tan("),("log","log("),("π","pi")]:
+            sci.add_widget(self.btn(t,"#2563EB",lambda x=v:self.add(x)))
+        root.add_widget(sci)
+        keys=[["7","8","9","/"],["4","5","6","*"],["1","2","3","-"],[".","0","^","+"],["(",")","%","="]]
+        grid=GridLayout(cols=4,row_force_default=True,row_default_height=dp(78),spacing=dp(8))
+        colors={"+":"#F97316","-":"#F97316","*":"#F97316","/":"#F97316","=":"#22C55E"}
+        for r in keys:
+            for k in r:
+                if k=="=": grid.add_widget(self.btn(k,colors[k],self.calc))
+                else: grid.add_widget(self.btn(k,colors.get(k,"#374151"),lambda x=k:self.add(x)))
+        root.add_widget(grid)
+        root.add_widget(Label(text="Historial",size_hint_y=None,height=dp(30),font_size="18sp"))
+        sv=ScrollView(size_hint=(1,.3))
+        self.lab=Label(size_hint_y=None,halign="left",valign="top",font_size="15sp")
+        self.lab.bind(texture_size=lambda i,v:setattr(i,"height",v[1]))
+        self.lab.bind(width=lambda i,v:setattr(i,"text_size",(v,None)))
+        sv.add_widget(self.lab); root.add_widget(sv)
+        root.add_widget(self.btn("Limpiar historial","#991B1B",self.clear_hist,size_hint_y=None,height=dp(55)))
+        self.load()
         return root
-
-    def _btn(self, texto, color_hex, accion, **kwargs):
-        b = Button(
-            text=texto,
-            background_color=get_color_from_hex(color_hex),
-            background_normal='',
-            color=(1, 1, 1, 1),
-            font_size='15sp',
-            bold=True,
-            **kwargs
-        )
-        b.bind(on_press=lambda x: accion())
-        return b
-
-    def escribir(self, valor):
-        self.entrada.text += valor
-
-    def limpiar(self):
-        self.entrada.text = ""
-
-    def borrar(self):
-        self.entrada.text = self.entrada.text[:-1]
-
-    def calcular(self):
+    def btn(self,t,c,f,**kw):
+        b=Button(text=t,background_normal="",background_color=get_color_from_hex(c),font_size="22sp",**kw)
+        b.bind(on_press=lambda *_:f()); return b
+    def add(self,v): self.txt.text+=v
+    def clear(self): self.txt.text=""
+    def back(self): self.txt.text=self.txt.text[:-1]
+    def calc(self):
         try:
-            expr = self.entrada.text
-            expr_eval = expr.replace("^", "**").replace("π", str(math.pi)).replace("pi", str(math.pi))
-            resultado = eval(expr_eval, {"__builtins__": None}, {
-                "sqrt": math.sqrt, "sin": math.sin, "cos": math.cos,
-                "tan": math.tan, "log": math.log10, "pi": math.pi
-            })
-            self._guardar_historial(expr, resultado)
-            self.entrada.text = str(resultado)
-        except Exception as e:
-            self.entrada.text = "Error"
-
-    def _guardar_historial(self, expr, resultado):
-        fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-        linea = f"[{fecha}] {expr} = {resultado}\n"
-        self.historial_texto += linea
-        self.lbl_historial.text = self.historial_texto
+            exp=self.txt.text
+            e=exp.replace("^","**").replace("π",str(math.pi)).replace("pi",str(math.pi))
+            r=eval(e,{"__builtins__":None},{"sqrt":math.sqrt,"sin":math.sin,"cos":math.cos,"tan":math.tan,"log":math.log10})
+            self.txt.text=str(r)
+            line=f"[{datetime.now():%d/%m/%Y %H:%M}] {exp} = {r}\n"
+            self.hist+=line; self.lab.text=self.hist
+            open(HISTORIAL_FILE,"a",encoding="utf8").write(line)
+        except: self.txt.text="Error"
+    def load(self):
         try:
-            with open(HISTORIAL_FILE, "a", encoding="utf-8") as f:
-                f.write(linea)
-        except Exception:
-            pass
+            self.hist=open(HISTORIAL_FILE,encoding="utf8").read(); self.lab.text=self.hist
+        except: pass
+    def clear_hist(self):
+        self.hist=""; self.lab.text=""; open(HISTORIAL_FILE,"w").close()
 
-    def _cargar_historial(self):
-        try:
-            with open(HISTORIAL_FILE, "r", encoding="utf-8") as f:
-                self.historial_texto = f.read()
-                self.lbl_historial.text = self.historial_texto
-        except FileNotFoundError:
-            pass
-
-    def limpiar_historial(self):
-        self.historial_texto = ""
-        self.lbl_historial.text = ""
-        try:
-            open(HISTORIAL_FILE, "w").close()
-        except Exception:
-            pass
-
-if __name__ == "__main__":
+if __name__=="__main__":
     CalculadoraApp().run()
